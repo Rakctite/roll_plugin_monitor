@@ -1,17 +1,38 @@
 # Roll Plugin Monitor
 
-MQTT 메시지를 구독해서 롤 좌/우 값과 롤 온도를 표시하는 Raspberry Pi용 UI 앱입니다.
+Raspberry Pi Docker app that subscribes to MQTT messages and displays roll left/right values and roll temperature with Tkinter.
 
-## 실행
+## Docker Layout
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\pip install -r requirements.txt
-$env:PYTHONPATH = "$PWD\src"
-python -m roll_plugin_monitor.app --config config.example.ini
+Runtime files live beside the compose file under `./roll_plugin_monitor/`.
+
+```text
+roll_plugin_monitor/
+  config.ini
+  logs/
 ```
 
-Linux/Raspberry Pi:
+`config.ini` is mounted read-only into `/app/config/config.ini`.
+Logs are written to `/app/logs/roll_plugin_monitor.log`.
+
+## Raspberry Pi Docker Run
+
+Prepare runtime config:
+
+```bash
+mkdir -p roll_plugin_monitor/logs
+cp config.example.ini roll_plugin_monitor/config.ini
+```
+
+Run with compose:
+
+```bash
+docker compose -f docker-compose.example.yml up -d --build
+```
+
+The compose file passes `DISPLAY` and mounts `/tmp/.X11-unix`, so the Raspberry Pi desktop session must be running.
+
+## Local Python Run
 
 ```bash
 python3 -m venv .venv
@@ -33,4 +54,3 @@ Legacy payload:
 ```json
 {"temperature":"52.4","left":"1.2","right":"1.5","din1":"1","din2":"0"}
 ```
-

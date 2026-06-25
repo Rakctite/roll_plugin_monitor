@@ -1,8 +1,8 @@
+.git
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
 venv/
-config.ini
 roll_plugin_monitor/
 

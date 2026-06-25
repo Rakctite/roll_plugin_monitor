@@ -1,4 +1,5 @@
 from roll_plugin_monitor.config import MonitorConfig
+from roll_plugin_monitor.config import load_config
 from roll_plugin_monitor.payloads import extract_reading
 from roll_plugin_monitor.state import MonitorState
 
@@ -76,3 +77,22 @@ def test_monitor_state_merges_partial_readings():
     assert snapshot.right == 1.2
     assert snapshot.roll_temp == 55.0
     assert snapshot.online is True
+
+
+def test_load_config_reads_runtime_log_file_path(tmp_path):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        "\n".join(
+            [
+                "[monitor]",
+                "mqtt_host = mqtt",
+                "log_file = /app/logs/roll_plugin_monitor.log",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file)
+
+    assert config.mqtt_host == "mqtt"
+    assert config.log_file == "/app/logs/roll_plugin_monitor.log"

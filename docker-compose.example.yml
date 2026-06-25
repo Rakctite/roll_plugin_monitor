@@ -1,0 +1,15 @@
+services:
+  roll-plugin-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: roll-plugin-monitor
+    restart: unless-stopped
+    environment:
+      DISPLAY: ${DISPLAY:-:0}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./roll_plugin_monitor/config.ini:/app/config/config.ini:ro
+      - ./roll_plugin_monitor/logs:/app/logs
+    network_mode: host
+

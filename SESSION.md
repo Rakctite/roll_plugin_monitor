@@ -17,4 +17,7 @@ Raspberry Pi 환경에서 MQTT 메시지를 구독해 롤 좌/우 값과 롤 온
 - 새 프로젝트 골격 생성.
 - MQTT payload 정규화 테스트 추가.
 - 설정, 상태 병합, MQTT 클라이언트, Tkinter UI, 실행 엔트리 추가.
-
+- Raspberry Pi Docker 배포 방향으로 `Dockerfile`, `docker-compose.example.yml` 추가.
+- compose 기준 런타임 파일은 `./roll_plugin_monitor/config.ini`, `./roll_plugin_monitor/logs/`에 둔다.
+- 앱 로그 파일 기본 경로는 `/app/logs/roll_plugin_monitor.log`로 설정한다.
+- Docker build context에서 로컬 런타임 폴더와 Python cache가 제외되도록 `.dockerignore`를 추가한다.

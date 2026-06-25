@@ -37,6 +37,7 @@ class MonitorConfig:
     client_id: str = "roll-plugin-monitor"
     username: str | None = None
     password: str | None = None
+    log_file: str | None = "/app/logs/roll_plugin_monitor.log"
 
 
 def load_config(path: str | Path | None = None) -> MonitorConfig:
@@ -70,5 +71,5 @@ def load_config(path: str | Path | None = None) -> MonitorConfig:
         client_id=get("client_id", "roll-plugin-monitor") or "roll-plugin-monitor",
         username=get("username"),
         password=get("password"),
+        log_file=get("log_file", "/app/logs/roll_plugin_monitor.log"),
     )
-
