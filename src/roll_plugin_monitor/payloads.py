@@ -12,6 +12,7 @@ from .config import MonitorConfig
 class RollReading:
     topic: str
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    object_values: dict[str, float] = field(default_factory=dict)
     left: float | None = None
     right: float | None = None
     roll_temp: float | None = None
@@ -72,12 +73,13 @@ def _names(values: tuple[str, ...]) -> set[str]:
 
 
 def _extract_tag_payload(
-    payload: dict[str, Any], config: MonitorConfig
-) -> tuple[float | None, float | None, float | None, str | None]:
+    topic: str, payload: dict[str, Any], config: MonitorConfig
+) -> tuple[float | None, float | None, float | None, dict[str, float], str | None]:
     left_names = _names(config.left_tags)
     right_names = _names(config.right_tags)
     temp_names = _names(config.roll_temp_tags)
     left = right = temp = None
+    object_values: dict[str, float] = {}
     errors: list[str] = []
 
     for tag in payload.get("tags", []):
@@ -97,8 +99,17 @@ def _extract_tag_payload(
             right = value
         elif name_key in temp_names:
             temp = value
+        if value is not None:
+            for monitor_object in config.objects:
+                if topic_matches_name(config_topic=monitor_object.topic, actual_topic=topic):
+                    if monitor_object.sensor_name.strip().lower() == name_key:
+                        object_values[monitor_object.object_id] = value
 
-    return left, right, temp, "; ".join(errors) if errors else None
+    return left, right, temp, object_values, "; ".join(errors) if errors else None
+
+
+def topic_matches_name(config_topic: str, actual_topic: str) -> bool:
+    return bool(config_topic) and config_topic == actual_topic
 
 
 def extract_reading(topic: str, payload: bytes | str | dict[str, Any], config: MonitorConfig) -> RollReading:
@@ -106,16 +117,17 @@ def extract_reading(topic: str, payload: bytes | str | dict[str, Any], config: M
     timestamp = _parse_timestamp(data.get("timestamp") or data.get("time") or data.get("update_time"))
 
     if isinstance(data.get("tags"), list):
-        left, right, temp, error = _extract_tag_payload(data, config)
+        left, right, temp, object_values, error = _extract_tag_payload(topic, data, config)
     else:
         left = _to_float(data.get("left") or data.get("left_thickness"))
         right = _to_float(data.get("right") or data.get("right_thickness"))
         temp = _to_float(data.get("temperature") or data.get("roll_temp") or data.get("temp"))
+        object_values = {}
         error = data.get("error") or data.get("error_msg")
-
     return RollReading(
         topic=topic,
         timestamp=timestamp,
+        object_values=object_values,
         left=left,
         right=right,
         roll_temp=temp,
@@ -124,4 +136,3 @@ def extract_reading(topic: str, payload: bytes | str | dict[str, Any], config: M
         online=True,
         error=str(error) if error else None,
     )
-

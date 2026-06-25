@@ -22,10 +22,27 @@ def _to_bool(value: str | bool | None, default: bool) -> bool:
 
 
 @dataclass(frozen=True)
+class MonitorObjectConfig:
+    object_id: str
+    label: str
+    unit: str
+    style: int
+    topic: str
+    sensor_name: str
+    x: int
+    y: int
+    w: int
+    h: int
+
+
+@dataclass(frozen=True)
 class MonitorConfig:
     mqtt_host: str
     mqtt_port: int = 1883
     topics: tuple[str, ...] = ("C-S/+/+/+/+/+/+/+/data", "iot/IPR/#")
+    grid_columns: int = 16
+    grid_rows: int = 9
+    objects: tuple[MonitorObjectConfig, ...] = ()
     left_tags: tuple[str, ...] = ("left", "left_thickness", "LEFT", "Roll_Left")
     right_tags: tuple[str, ...] = ("right", "right_thickness", "RIGHT", "Roll_Right")
     roll_temp_tags: tuple[str, ...] = ("temperature", "roll_temp", "temp", "TEMP", "Roll_Temp")
@@ -38,6 +55,30 @@ class MonitorConfig:
     username: str | None = None
     password: str | None = None
     log_file: str | None = "/app/logs/roll_plugin_monitor.log"
+
+
+def _load_objects(parser: configparser.ConfigParser, count: int) -> tuple[MonitorObjectConfig, ...]:
+    objects: list[MonitorObjectConfig] = []
+    for index in range(1, count + 1):
+        section_name = f"object.{index}"
+        if not parser.has_section(section_name):
+            continue
+        section = parser[section_name]
+        objects.append(
+            MonitorObjectConfig(
+                object_id=str(index),
+                label=section.get("label", f"OBJECT {index}"),
+                unit=section.get("unit", ""),
+                style=int(section.get("style", "1") or 1),
+                topic=section.get("topic", ""),
+                sensor_name=section.get("sensor_name", ""),
+                x=int(section.get("x", "1") or 1),
+                y=int(section.get("y", "1") or 1),
+                w=int(section.get("w", "1") or 1),
+                h=int(section.get("h", "1") or 1),
+            )
+        )
+    return tuple(objects)
 
 
 def load_config(path: str | Path | None = None) -> MonitorConfig:
@@ -55,11 +96,14 @@ def load_config(path: str | Path | None = None) -> MonitorConfig:
     host = get("mqtt_host") or get("mqtt_broker") or "localhost"
     min_value = get("min_thickness")
     max_value = get("max_thickness")
-
+    object_count = int(get("object_count", "0") or 0)
     return MonitorConfig(
         mqtt_host=host,
         mqtt_port=int(get("mqtt_port", "1883") or 1883),
         topics=_split_csv(get("topics"), MonitorConfig.topics),
+        grid_columns=int(get("grid_columns", "16") or 16),
+        grid_rows=int(get("grid_rows", "9") or 9),
+        objects=_load_objects(parser, object_count),
         left_tags=_split_csv(get("left_tags"), MonitorConfig.left_tags),
         right_tags=_split_csv(get("right_tags"), MonitorConfig.right_tags),
         roll_temp_tags=_split_csv(get("roll_temp_tags"), MonitorConfig.roll_temp_tags),

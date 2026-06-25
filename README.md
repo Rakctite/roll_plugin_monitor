@@ -38,6 +38,33 @@ The published image is:
 203.228.107.184:5000/btx/roll_plugin_monitor:1.0.0
 ```
 
+## Object Layout
+
+The UI can be configured from `config.ini` with monitor objects. The screen is split into a grid, normally `16 x 9`. Coordinates are 1-based, so `x = 1` and `y = 1` is the top-left grid cell.
+
+Each object updates only when both the MQTT topic and the payload tag name match:
+
+```ini
+[monitor]
+topics = iot/IPR/#
+grid_columns = 16
+grid_rows = 9
+object_count = 1
+
+[object.1]
+label = LEFT
+unit = mm
+style = 1
+topic = iot/IPR/roll
+sensor_name = left_thickness
+x = 1
+y = 1
+w = 5
+h = 3
+```
+
+`style = 1` displays the current dark metric card with the unit shown beside the label.
+
 ## Local Python Run
 
 ```bash

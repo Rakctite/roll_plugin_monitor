@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from .payloads import RollReading
@@ -8,6 +8,7 @@ from .payloads import RollReading
 
 @dataclass(frozen=True)
 class MonitorSnapshot:
+    object_values: dict[str, float] = field(default_factory=dict)
     left: float | None = None
     right: float | None = None
     roll_temp: float | None = None
@@ -25,7 +26,10 @@ class MonitorState:
 
     def update(self, reading: RollReading) -> MonitorSnapshot:
         current = self._snapshot
+        object_values = dict(current.object_values)
+        object_values.update(reading.object_values)
         self._snapshot = MonitorSnapshot(
+            object_values=object_values,
             left=reading.left if reading.left is not None else current.left,
             right=reading.right if reading.right is not None else current.right,
             roll_temp=reading.roll_temp if reading.roll_temp is not None else current.roll_temp,
@@ -47,6 +51,7 @@ class MonitorState:
         if age <= stale_sec or not self._snapshot.online:
             return self._snapshot
         self._snapshot = MonitorSnapshot(
+            object_values=self._snapshot.object_values,
             left=self._snapshot.left,
             right=self._snapshot.right,
             roll_temp=self._snapshot.roll_temp,
@@ -61,4 +66,3 @@ class MonitorState:
 
     def snapshot(self) -> MonitorSnapshot:
         return self._snapshot
-

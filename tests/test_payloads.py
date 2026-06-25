@@ -1,4 +1,5 @@
 from roll_plugin_monitor.config import MonitorConfig
+from roll_plugin_monitor.config import MonitorObjectConfig
 from roll_plugin_monitor.config import load_config
 from roll_plugin_monitor.payloads import extract_reading
 from roll_plugin_monitor.state import MonitorState
@@ -96,3 +97,142 @@ def test_load_config_reads_runtime_log_file_path(tmp_path):
 
     assert config.mqtt_host == "mqtt"
     assert config.log_file == "/app/logs/roll_plugin_monitor.log"
+
+
+def test_load_config_reads_monitor_objects(tmp_path):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        "\n".join(
+            [
+                "[monitor]",
+                "mqtt_host = mqtt",
+                "topics = iot/IPR/#",
+                "grid_columns = 16",
+                "grid_rows = 9",
+                "object_count = 2",
+                "",
+                "[object.1]",
+                "label = LEFT",
+                "unit = mm",
+                "style = 1",
+                "topic = iot/IPR/roll",
+                "sensor_name = left_thickness",
+                "x = 1",
+                "y = 1",
+                "w = 4",
+                "h = 2",
+                "",
+                "[object.2]",
+                "label = TEMP",
+                "unit = C",
+                "style = 1",
+                "topic = iot/IPR/roll",
+                "sensor_name = roll_temp",
+                "x = 5",
+                "y = 1",
+                "w = 4",
+                "h = 2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file)
+
+    assert config.grid_columns == 16
+    assert config.grid_rows == 9
+    assert config.objects == (
+        MonitorObjectConfig(
+            object_id="1",
+            label="LEFT",
+            unit="mm",
+            style=1,
+            topic="iot/IPR/roll",
+            sensor_name="left_thickness",
+            x=1,
+            y=1,
+            w=4,
+            h=2,
+        ),
+        MonitorObjectConfig(
+            object_id="2",
+            label="TEMP",
+            unit="C",
+            style=1,
+            topic="iot/IPR/roll",
+            sensor_name="roll_temp",
+            x=5,
+            y=1,
+            w=4,
+            h=2,
+        ),
+    )
+
+
+def test_extracts_object_values_only_when_topic_and_sensor_match():
+    config = MonitorConfig(
+        mqtt_host="localhost",
+        topics=("iot/IPR/#",),
+        objects=(
+            MonitorObjectConfig(
+                object_id="1",
+                label="LEFT",
+                unit="mm",
+                style=1,
+                topic="iot/IPR/roll",
+                sensor_name="left_thickness",
+                x=1,
+                y=1,
+                w=4,
+                h=2,
+            ),
+            MonitorObjectConfig(
+                object_id="2",
+                label="OTHER",
+                unit="mm",
+                style=1,
+                topic="iot/IPR/other",
+                sensor_name="left_thickness",
+                x=5,
+                y=1,
+                w=4,
+                h=2,
+            ),
+        ),
+    )
+    payload = {
+        "tags": [
+            {"name": "left_thickness", "value": 12.3, "quality": "good"},
+            {"name": "roll_temp", "value": 50.0, "quality": "good"},
+        ]
+    }
+
+    reading = extract_reading("iot/IPR/roll", payload, config)
+
+    assert reading.object_values == {"1": 12.3}
+
+
+def test_monitor_state_merges_object_values():
+    state = MonitorState()
+    config = MonitorConfig(
+        mqtt_host="localhost",
+        objects=(
+            MonitorObjectConfig(
+                object_id="1",
+                label="LEFT",
+                unit="mm",
+                style=1,
+                topic="topic",
+                sensor_name="left",
+                x=1,
+                y=1,
+                w=4,
+                h=2,
+            ),
+        ),
+    )
+
+    state.update(extract_reading("topic", {"tags": [{"name": "left", "value": 1.1}]}, config))
+    state.update(extract_reading("topic", {"tags": [{"name": "right", "value": 1.2}]}, config))
+
+    assert state.snapshot().object_values == {"1": 1.1}
