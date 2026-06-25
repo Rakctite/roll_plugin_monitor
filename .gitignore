@@ -4,5 +4,4 @@ __pycache__/
 .venv/
 venv/
 config.ini
-roll_plugin_monitor/
-
+/roll_plugin_monitor/

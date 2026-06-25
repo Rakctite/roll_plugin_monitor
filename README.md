@@ -27,10 +27,16 @@ cp config.example.ini roll_plugin_monitor/config.ini
 Run with compose:
 
 ```bash
-docker compose -f docker-compose.example.yml up -d --build
+docker compose -f docker-compose.example.yml up -d
 ```
 
 The compose file passes `DISPLAY` and mounts `/tmp/.X11-unix`, so the Raspberry Pi desktop session must be running.
+
+The published image is:
+
+```text
+203.228.107.184:5000/btx/roll_plugin_monitor:1.0.0
+```
 
 ## Local Python Run
 

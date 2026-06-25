@@ -1,8 +1,6 @@
 services:
   roll-plugin-monitor:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: 203.228.107.184:5000/btx/roll_plugin_monitor:1.0.0
     container_name: roll-plugin-monitor
     restart: unless-stopped
     environment:
@@ -12,4 +10,3 @@ services:
       - ./roll_plugin_monitor/config.ini:/app/config/config.ini:ro
       - ./roll_plugin_monitor/logs:/app/logs
     network_mode: host
-
