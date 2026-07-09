@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Roll Plugin Monitor (local)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "roll_plugin_monitor.app",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "ROLL_MONITOR_FULLSCREEN": "true",
+        "ROLL_MONITOR_LOG_FILE": "${workspaceFolder}/logs/roll_plugin_monitor.log"
+      },
+      "args": [
+        "--config",
+        "${workspaceFolder}/config.ini"
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}

@@ -16,10 +16,12 @@ class MqttMonitorClient:
         self,
         config: MonitorConfig,
         on_reading: Callable[[RollReading], None],
+        on_connection_change: Callable[[bool], None] | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
         self._config = config
         self._on_reading = on_reading
+        self._on_connection_change = on_connection_change
         self._logger = logger or logging.getLogger(__name__)
         self._client: mqtt.Client | None = None
 
@@ -44,12 +46,18 @@ class MqttMonitorClient:
     def _on_connect(self, client: mqtt.Client, userdata: object, flags: dict, rc: int) -> None:
         if rc != 0:
             self._logger.error("mqtt connect failed rc=%s", rc)
+            if self._on_connection_change:
+                self._on_connection_change(False)
             return
+        if self._on_connection_change:
+            self._on_connection_change(True)
         for topic in self._config.topics:
             client.subscribe(topic)
             self._logger.info("subscribed mqtt topic %s", topic)
 
     def _on_disconnect(self, client: mqtt.Client, userdata: object, rc: int) -> None:
+        if self._on_connection_change:
+            self._on_connection_change(False)
         if rc:
             self._logger.warning("mqtt disconnected rc=%s", rc)
 
@@ -60,4 +68,3 @@ class MqttMonitorClient:
             self._logger.exception("failed to parse mqtt payload topic=%s", message.topic)
             return
         self._on_reading(reading)
-

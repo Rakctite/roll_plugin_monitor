@@ -38,16 +38,12 @@ class MonitorObjectConfig:
 @dataclass(frozen=True)
 class MonitorConfig:
     mqtt_host: str
+    title: str = "ROLL MONITOR"
     mqtt_port: int = 1883
     topics: tuple[str, ...] = ("C-S/+/+/+/+/+/+/+/data", "iot/IPR/#")
     grid_columns: int = 16
     grid_rows: int = 9
     objects: tuple[MonitorObjectConfig, ...] = ()
-    left_tags: tuple[str, ...] = ("left", "left_thickness", "LEFT", "Roll_Left")
-    right_tags: tuple[str, ...] = ("right", "right_thickness", "RIGHT", "Roll_Right")
-    roll_temp_tags: tuple[str, ...] = ("temperature", "roll_temp", "temp", "TEMP", "Roll_Temp")
-    min_thickness: float | None = None
-    max_thickness: float | None = None
     stale_sec: float = 5.0
     fullscreen: bool = True
     display_interval_ms: int = 200
@@ -94,21 +90,15 @@ def load_config(path: str | Path | None = None) -> MonitorConfig:
         return os.getenv(env_name) or section.get(name.lower(), default)
 
     host = get("mqtt_host") or get("mqtt_broker") or "localhost"
-    min_value = get("min_thickness")
-    max_value = get("max_thickness")
     object_count = int(get("object_count", "0") or 0)
     return MonitorConfig(
         mqtt_host=host,
+        title=get("title", "ROLL MONITOR") or "ROLL MONITOR",
         mqtt_port=int(get("mqtt_port", "1883") or 1883),
         topics=_split_csv(get("topics"), MonitorConfig.topics),
         grid_columns=int(get("grid_columns", "16") or 16),
         grid_rows=int(get("grid_rows", "9") or 9),
         objects=_load_objects(parser, object_count),
-        left_tags=_split_csv(get("left_tags"), MonitorConfig.left_tags),
-        right_tags=_split_csv(get("right_tags"), MonitorConfig.right_tags),
-        roll_temp_tags=_split_csv(get("roll_temp_tags"), MonitorConfig.roll_temp_tags),
-        min_thickness=float(min_value) if min_value not in {None, ""} else None,
-        max_thickness=float(max_value) if max_value not in {None, ""} else None,
         stale_sec=float(get("stale_sec", "5") or 5),
         fullscreen=_to_bool(get("fullscreen"), True),
         display_interval_ms=int(get("display_interval_ms", "200") or 200),

@@ -30,7 +30,7 @@ def main() -> None:
     config = load_config(args.config)
     configure_logging(config.log_file)
     app = RollMonitorApp(config)
-    client = MqttMonitorClient(config, app.enqueue)
+    client = MqttMonitorClient(config, app.enqueue, on_connection_change=app.set_broker_connected)
     try:
         client.start()
         app.run()

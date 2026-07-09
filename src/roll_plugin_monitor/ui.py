@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import queue
+import threading
 import tkinter as tk
 from datetime import datetime, timezone
 
@@ -9,56 +9,66 @@ from .payloads import RollReading
 from .state import MonitorSnapshot, MonitorState
 
 
+class LatestReadingBuffer:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._reading: RollReading | None = None
+
+    def put(self, reading: RollReading) -> None:
+        with self._lock:
+            self._reading = reading
+
+    def take_latest(self) -> RollReading | None:
+        with self._lock:
+            reading = self._reading
+            self._reading = None
+            return reading
+
+
+def object_place_geometry(monitor_object: MonitorObjectConfig, config: MonitorConfig) -> dict[str, float]:
+    columns = max(config.grid_columns, 1)
+    rows = max(config.grid_rows, 1)
+    x = min(max(monitor_object.x, 1), columns)
+    y = min(max(monitor_object.y, 1), rows)
+    w = min(max(monitor_object.w, 1), columns - x + 1)
+    h = min(max(monitor_object.h, 1), rows - y + 1)
+    return {
+        "relx": (x - 1) / columns,
+        "rely": (y - 1) / rows,
+        "relwidth": w / columns,
+        "relheight": h / rows,
+    }
+
+
 class RollMonitorApp:
     def __init__(self, config: MonitorConfig) -> None:
         self.config = config
         self.state = MonitorState()
-        self.queue: queue.Queue[RollReading] = queue.Queue()
+        self.latest_reading = LatestReadingBuffer()
         self.root = tk.Tk()
         self.root.title("Roll Plugin Monitor")
         if config.fullscreen:
             self.root.attributes("-fullscreen", True)
         self.root.bind("<Escape>", lambda event: self.root.attributes("-fullscreen", False))
         self.object_values: dict[str, tk.StringVar] = {}
+        self.object_last_seen: dict[str, tk.StringVar] = {}
+        self.object_value_labels: dict[str, tk.Label] = {}
+        self.broker_status = tk.StringVar(value="Broker Disconnected")
         self._build()
 
     def enqueue(self, reading: RollReading) -> None:
-        self.queue.put(reading)
+        self.latest_reading.put(reading)
+
+    def set_broker_connected(self, connected: bool) -> None:
+        status = "" if connected else "Broker Disconnected"
+        self.root.after(0, lambda: self.broker_status.set(status))
 
     def run(self) -> None:
         self._poll()
         self.root.mainloop()
 
     def _build(self) -> None:
-        if self.config.objects:
-            self._build_object_grid()
-            return
-        self._build_legacy_metrics()
-
-    def _build_legacy_metrics(self) -> None:
-        self.root.configure(bg="#111111")
-        self.status = tk.StringVar(value="WAITING")
-        self.left = tk.StringVar(value="-")
-        self.right = tk.StringVar(value="-")
-        self.temp = tk.StringVar(value="-")
-        self.topic = tk.StringVar(value="-")
-        self.error = tk.StringVar(value="")
-
-        top = tk.Frame(self.root, bg="#111111")
-        top.pack(fill="x", padx=24, pady=(20, 10))
-        tk.Label(top, text="ROLL MONITOR", fg="white", bg="#111111", font=("Arial", 28, "bold")).pack(side="left")
-        tk.Label(top, textvariable=self.status, fg="#00d084", bg="#111111", font=("Arial", 18, "bold")).pack(side="right")
-
-        body = tk.Frame(self.root, bg="#111111")
-        body.pack(fill="both", expand=True, padx=24, pady=10)
-        self._metric(body, "LEFT", self.left, 0)
-        self._metric(body, "RIGHT", self.right, 1)
-        self._metric(body, "ROLL TEMP", self.temp, 2)
-
-        bottom = tk.Frame(self.root, bg="#111111")
-        bottom.pack(fill="x", padx=24, pady=(8, 20))
-        tk.Label(bottom, textvariable=self.topic, fg="#999999", bg="#111111", font=("Arial", 12)).pack(anchor="w")
-        tk.Label(bottom, textvariable=self.error, fg="#ff6b6b", bg="#111111", font=("Arial", 14)).pack(anchor="w")
+        self._build_object_grid()
 
     def _build_object_grid(self) -> None:
         self.root.configure(bg="#111111")
@@ -68,14 +78,17 @@ class RollMonitorApp:
 
         title = tk.Frame(self.root, bg="#111111")
         title.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 10))
-        tk.Label(title, text="ROLL MONITOR", fg="white", bg="#111111", font=("Arial", 28, "bold")).pack(side="left")
+        tk.Label(title, text=self.config.title, fg="white", bg="#111111", font=("Arial", 28, "bold")).pack(side="left")
+        tk.Label(
+            title,
+            textvariable=self.broker_status,
+            fg="#ff4d4d",
+            bg="#111111",
+            font=("Arial", 16, "bold"),
+        ).pack(side="right")
 
         body = tk.Frame(self.root, bg="#111111")
         body.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 24))
-        for column in range(self.config.grid_columns):
-            body.grid_columnconfigure(column, weight=1, uniform="monitor-grid")
-        for row in range(self.config.grid_rows):
-            body.grid_rowconfigure(row, weight=1, uniform="monitor-grid")
 
         for monitor_object in self.config.objects:
             self._build_object_style(body, monitor_object)
@@ -88,17 +101,21 @@ class RollMonitorApp:
 
     def _object_style_1(self, parent: tk.Frame, monitor_object: MonitorObjectConfig) -> None:
         value = tk.StringVar(value="-")
+        last_seen = tk.StringVar(value="")
         self.object_values[monitor_object.object_id] = value
+        self.object_last_seen[monitor_object.object_id] = last_seen
 
         panel = tk.Frame(parent, bg="#1e1e1e", padx=24, pady=20)
-        panel.grid(
-            row=max(monitor_object.y - 1, 0),
-            column=max(monitor_object.x - 1, 0),
-            rowspan=max(monitor_object.h, 1),
-            columnspan=max(monitor_object.w, 1),
-            sticky="nsew",
-            padx=8,
-            pady=8,
+        geometry = object_place_geometry(monitor_object, self.config)
+        panel.place(
+            relx=geometry["relx"],
+            rely=geometry["rely"],
+            relwidth=geometry["relwidth"],
+            relheight=geometry["relheight"],
+            x=8,
+            y=8,
+            width=-16,
+            height=-16,
         )
 
         header = tk.Frame(panel, bg="#1e1e1e")
@@ -114,39 +131,37 @@ class RollMonitorApp:
                 bg="#1e1e1e",
                 font=("Arial", 12, "bold"),
             ).pack(side="left", padx=(4, 0), pady=(6, 0))
-        tk.Label(panel, textvariable=value, fg="white", bg="#1e1e1e", font=("Arial", 64, "bold")).pack(expand=True)
-
-    def _metric(self, parent: tk.Frame, label: str, value: tk.StringVar, column: int) -> None:
-        panel = tk.Frame(parent, bg="#1e1e1e", padx=24, pady=20)
-        panel.grid(row=0, column=column, sticky="nsew", padx=8)
-        parent.grid_columnconfigure(column, weight=1)
-        tk.Label(panel, text=label, fg="#bbbbbb", bg="#1e1e1e", font=("Arial", 20, "bold")).pack(anchor="w")
-        tk.Label(panel, textvariable=value, fg="white", bg="#1e1e1e", font=("Arial", 64, "bold")).pack(expand=True)
+        value_label = tk.Label(panel, textvariable=value, fg="white", bg="#1e1e1e", font=("Arial", 64, "bold"))
+        value_label.pack(expand=True)
+        self.object_value_labels[monitor_object.object_id] = value_label
+        tk.Label(panel, textvariable=last_seen, fg="#ff6b6b", bg="#1e1e1e", font=("Arial", 12, "bold")).pack(
+            anchor="w"
+        )
 
     def _poll(self) -> None:
-        while True:
-            try:
-                self.state.update(self.queue.get_nowait())
-            except queue.Empty:
-                break
+        reading = self.latest_reading.take_latest()
+        if reading is not None:
+            self.state.update(reading)
 
         snapshot = self.state.mark_stale(self.config.stale_sec, datetime.now(timezone.utc))
         self._render(snapshot)
         self.root.after(self.config.display_interval_ms, self._poll)
 
     def _render(self, snapshot: MonitorSnapshot) -> None:
-        if self.config.objects:
-            for object_id, value in (snapshot.object_values or {}).items():
-                variable = self.object_values.get(object_id)
-                if variable is not None:
-                    variable.set(self._format(value))
-            return
-        self.status.set("ONLINE" if snapshot.online else "OFFLINE")
-        self.left.set(self._format(snapshot.left))
-        self.right.set(self._format(snapshot.right))
-        self.temp.set(self._format(snapshot.roll_temp))
-        self.topic.set(snapshot.topic or "-")
-        self.error.set(snapshot.error or "")
+        for object_id, value in (snapshot.object_values or {}).items():
+            variable = self.object_values.get(object_id)
+            if variable is not None:
+                variable.set(self._format(value))
+        for object_id, variable in self.object_last_seen.items():
+            value_label = self.object_value_labels.get(object_id)
+            last_seen = snapshot.object_last_seen.get(object_id)
+            is_stale = object_id in snapshot.stale_object_ids
+            if value_label is not None:
+                value_label.configure(fg="#ff4d4d" if is_stale else "white")
+            if is_stale and last_seen is not None:
+                variable.set(f"Last Seen: {last_seen.astimezone().strftime('%Y-%m-%d %H:%M:%S')}")
+            else:
+                variable.set("")
 
     def _format(self, value: float | int | None) -> str:
         if value is None:

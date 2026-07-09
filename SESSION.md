@@ -21,6 +21,6 @@ Raspberry Pi 환경에서 MQTT 메시지를 구독해 롤 좌/우 값과 롤 온
 - compose 기준 런타임 파일은 `./roll_plugin_monitor/config.ini`, `./roll_plugin_monitor/logs/`에 둔다.
 - 앱 로그 파일 기본 경로는 `/app/logs/roll_plugin_monitor.log`로 설정한다.
 - Docker build context에서 로컬 런타임 폴더와 Python cache가 제외되도록 `.dockerignore`를 추가한다.
-- 앱/도커 이미지 버전을 `1.0.0`으로 맞춘다.
-- Docker image tag 기준은 `btx/roll_plugin_monitor:1.0.0`로 둔다.
-- Raspberry Pi 배포용 registry image는 `203.228.107.184:5000/btx/roll_plugin_monitor:1.0.0`이고 `linux/arm64`로 빌드/푸시한다.
+- 앱/도커 이미지 버전을 `1.0.1`으로 맞춘다.
+- Docker image tag 기준은 `btx/roll_plugin_monitor:1.0.1`로 둔다.
+- Raspberry Pi 배포용 registry image는 `203.228.107.184:5000/btx/roll_plugin_monitor:1.0.1`이고 `linux/arm64`로 빌드/푸시한다.
