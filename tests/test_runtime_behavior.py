@@ -4,6 +4,7 @@ from roll_plugin_monitor.mqtt_client import MqttMonitorClient
 from roll_plugin_monitor.payloads import RollReading
 from roll_plugin_monitor.ui import LatestReadingBuffer
 from roll_plugin_monitor.ui import object_place_geometry
+import roll_plugin_monitor.ui as ui
 
 
 def test_latest_reading_buffer_keeps_only_latest_value():
@@ -106,3 +107,25 @@ def test_object_place_geometry_clamps_objects_to_grid_bounds():
 
     assert geometry["relx"] == 12 / 16
     assert geometry["relwidth"] == 4 / 16
+
+
+def test_ui_font_specs_use_monitor_and_object_font_sizes():
+    config = MonitorConfig(mqtt_host="localhost", title_font_size=34)
+    monitor_object = MonitorObjectConfig(
+        object_id="1",
+        label="PRESSURE",
+        unit="bar",
+        style=1,
+        topic="topic",
+        sensor_name="pressure",
+        x=1,
+        y=1,
+        w=4,
+        h=2,
+        label_font_size=22,
+        value_font_size=70,
+    )
+
+    assert ui.title_font(config) == ("Arial", 34, "bold")
+    assert ui.object_label_font(monitor_object) == ("Arial", 22, "bold")
+    assert ui.object_value_font(monitor_object) == ("Arial", 70, "bold")

@@ -40,6 +40,18 @@ def object_place_geometry(monitor_object: MonitorObjectConfig, config: MonitorCo
     }
 
 
+def title_font(config: MonitorConfig) -> tuple[str, int, str]:
+    return ("Arial", config.title_font_size, "bold")
+
+
+def object_label_font(monitor_object: MonitorObjectConfig) -> tuple[str, int, str]:
+    return ("Arial", monitor_object.label_font_size, "bold")
+
+
+def object_value_font(monitor_object: MonitorObjectConfig) -> tuple[str, int, str]:
+    return ("Arial", monitor_object.value_font_size, "bold")
+
+
 class RollMonitorApp:
     def __init__(self, config: MonitorConfig) -> None:
         self.config = config
@@ -78,7 +90,7 @@ class RollMonitorApp:
 
         title = tk.Frame(self.root, bg="#111111")
         title.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 10))
-        tk.Label(title, text=self.config.title, fg="white", bg="#111111", font=("Arial", 28, "bold")).pack(side="left")
+        tk.Label(title, text=self.config.title, fg="white", bg="#111111", font=title_font(self.config)).pack(side="left")
         tk.Label(
             title,
             textvariable=self.broker_status,
@@ -120,7 +132,7 @@ class RollMonitorApp:
 
         header = tk.Frame(panel, bg="#1e1e1e")
         header.pack(anchor="w", fill="x")
-        tk.Label(header, text=monitor_object.label, fg="#bbbbbb", bg="#1e1e1e", font=("Arial", 20, "bold")).pack(
+        tk.Label(header, text=monitor_object.label, fg="#bbbbbb", bg="#1e1e1e", font=object_label_font(monitor_object)).pack(
             side="left"
         )
         if monitor_object.unit:
@@ -131,7 +143,7 @@ class RollMonitorApp:
                 bg="#1e1e1e",
                 font=("Arial", 12, "bold"),
             ).pack(side="left", padx=(4, 0), pady=(6, 0))
-        value_label = tk.Label(panel, textvariable=value, fg="white", bg="#1e1e1e", font=("Arial", 64, "bold"))
+        value_label = tk.Label(panel, textvariable=value, fg="white", bg="#1e1e1e", font=object_value_font(monitor_object))
         value_label.pack(expand=True)
         self.object_value_labels[monitor_object.object_id] = value_label
         tk.Label(panel, textvariable=last_seen, fg="#ff6b6b", bg="#1e1e1e", font=("Arial", 12, "bold")).pack(
