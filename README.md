@@ -35,7 +35,7 @@ The compose file passes `DISPLAY` and mounts `/tmp/.X11-unix`, so the Raspberry 
 The published image is:
 
 ```text
-203.228.107.184:5000/btx/roll_plugin_monitor:1.0.1
+203.228.107.184:5000/btx/roll_plugin_monitor:1.0.2
 ```
 
 ## Object Layout
@@ -47,7 +47,10 @@ Each object updates only when both the MQTT topic and the configured `sensor_nam
 ```ini
 [monitor]
 title = ROLL MONITOR
+title_use = 1
 title_font_size = 28
+warning_color_use = 2
+unit_location = label
 topics = iot/IPR/#
 grid_columns = 16
 grid_rows = 9
@@ -59,6 +62,7 @@ label = R GAP LEFT
 label_font_size = 20
 value_font_size = 64
 unit = mm
+unit_font_size = 12
 style = 1
 topic = C-S/3210/IP/ROLL/C/RollC/-/Gap
 sensor_name = R_Gap_left
@@ -68,11 +72,28 @@ w = 5
 h = 3
 ```
 
-`style = 1` displays the current dark metric card with the unit shown beside the label.
+`style = 1` displays the current dark metric card.
 
-The title text is controlled by `[monitor] title`, and its size is controlled by `[monitor] title_font_size`. Each `[object.N]` section independently controls its label and measured-value sizes with `label_font_size` and `value_font_size`. If omitted, the existing sizes are retained: `28` for the title, `20` for an object label, and `64` for a measured value. Font sizes must be positive integers. Changes take effect after restarting or recreating the application container.
+`title_use = 1` shows the title row. Set it to `0` to hide both the title and broker status and let the object grid use the full screen height. The title text and size are controlled by `title` and `title_font_size`.
 
-If a configured sensor does not update for more than `stale_sec`, its value turns red and the card shows `Last Seen: ...` under the label. Broker status is hidden while connected; when disconnected, the title bar shows `Broker Disconnected` in red.
+`unit_location` controls where every object's unit is displayed:
+
+- `label`: `R GAP LEFT (mm)`
+- `value`: `12.3 mm`
+
+Each `[object.N]` section independently controls `label_font_size`, `value_font_size`, and `unit_font_size`. Defaults are `20`, `64`, and `12`; the title default is `28`. Font sizes must be positive integers.
+
+`warning_color_use` controls stale-data and broker-disconnection presentation:
+
+| Value | Warning messages | Warning color |
+| --- | --- | --- |
+| `0` | Hidden | Disabled; values remain white |
+| `1` | Shown | Neutral gray; values remain white |
+| `2` | Shown | Red, including stale values |
+
+`Broker Disconnected` appears only when the title row is enabled. `Last Seen: ...` follows `warning_color_use` independently of the title row. Configuration changes take effect after restarting or recreating the application container.
+
+The monitor-wide settings can also be overridden with `ROLL_MONITOR_TITLE_USE`, `ROLL_MONITOR_WARNING_COLOR_USE`, and `ROLL_MONITOR_UNIT_LOCATION` environment variables.
 
 The monitor keeps only the latest MQTT reading in memory for display. Historical storage should be handled by the collection service.
 
