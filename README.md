@@ -47,6 +47,7 @@ Each object updates only when both the MQTT topic and the configured `sensor_nam
 ```ini
 [monitor]
 title = ROLL MONITOR
+title_font_size = 28
 topics = iot/IPR/#
 grid_columns = 16
 grid_rows = 9
@@ -55,6 +56,8 @@ stale_sec = 5
 
 [object.1]
 label = R GAP LEFT
+label_font_size = 20
+value_font_size = 64
 unit = mm
 style = 1
 topic = C-S/3210/IP/ROLL/C/RollC/-/Gap
@@ -67,7 +70,9 @@ h = 3
 
 `style = 1` displays the current dark metric card with the unit shown beside the label.
 
-The title text is controlled by `[monitor] title`. If a configured sensor does not update for more than `stale_sec`, its value turns red and the card shows `Last Seen: ...` under the label. Broker status is hidden while connected; when disconnected, the title bar shows `Broker Disconnected` in red.
+The title text is controlled by `[monitor] title`, and its size is controlled by `[monitor] title_font_size`. Each `[object.N]` section independently controls its label and measured-value sizes with `label_font_size` and `value_font_size`. If omitted, the existing sizes are retained: `28` for the title, `20` for an object label, and `64` for a measured value. Font sizes must be positive integers. Changes take effect after restarting or recreating the application container.
+
+If a configured sensor does not update for more than `stale_sec`, its value turns red and the card shows `Last Seen: ...` under the label. Broker status is hidden while connected; when disconnected, the title bar shows `Broker Disconnected` in red.
 
 The monitor keeps only the latest MQTT reading in memory for display. Historical storage should be handled by the collection service.
 
