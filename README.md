@@ -61,6 +61,7 @@ stale_sec = 5
 label = R GAP LEFT
 label_font_size = 20
 value_font_size = 64
+decimal_places = 2
 unit = mm
 unit_font_size = 12
 style = 1
@@ -81,7 +82,9 @@ h = 3
 - `label`: `R GAP LEFT (mm)`
 - `value`: `12.3 mm`
 
-Each `[object.N]` section independently controls `label_font_size`, `value_font_size`, and `unit_font_size`. Defaults are `20`, `64`, and `12`; the title default is `28`. Font sizes must be positive integers.
+The UI uses `DejaVu Sans Condensed` in bold by default so long numeric values take less horizontal space. Each `[object.N]` section independently controls `label_font_size`, `value_font_size`, and `unit_font_size`. Defaults are `20`, `64`, and `12`; the title default is `28`. Font sizes must be positive integers.
+
+Each object also controls its displayed fractional digits with `decimal_places`. The default is `2`, and zero or any positive integer is accepted. Integer readings are shown unchanged, regardless of their length. Floating-point readings are rounded and padded to exactly the configured number of fractional digits. For example, with `decimal_places = 2`, `13000` stays `13000`, `13000.123` becomes `13000.12`, and `0.129` becomes `0.13`. Negative and non-integer configuration values stop startup with a clear configuration error.
 
 `warning_color_use` controls stale-data and broker-disconnection presentation:
 
