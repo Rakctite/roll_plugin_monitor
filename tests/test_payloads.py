@@ -4,6 +4,8 @@ from roll_plugin_monitor.config import load_config
 from roll_plugin_monitor.payloads import extract_reading
 from roll_plugin_monitor.state import MonitorState
 from datetime import datetime, timezone
+import pytest
+import re
 
 
 def test_extracts_tag_payload_sensor_values_and_configured_object_values():
@@ -370,3 +372,78 @@ def test_monitor_state_merges_sensor_values_from_all_messages():
         "R_Gap_left": 0.044,
         "R_Temp": 49.1,
     }
+
+
+def test_load_config_reads_independent_monitor_and_object_font_sizes(tmp_path):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        "\n".join(
+            [
+                "[monitor]",
+                "mqtt_host = mqtt",
+                "title_font_size = 32",
+                "object_count = 2",
+                "",
+                "[object.1]",
+                "label_font_size = 18",
+                "value_font_size = 48",
+                "",
+                "[object.2]",
+                "label_font_size = 24",
+                "value_font_size = 72",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file)
+
+    assert config.title_font_size == 32
+    assert (config.objects[0].label_font_size, config.objects[0].value_font_size) == (18, 48)
+    assert (config.objects[1].label_font_size, config.objects[1].value_font_size) == (24, 72)
+
+
+def test_load_config_uses_existing_font_sizes_as_defaults(tmp_path):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        "[monitor]\nmqtt_host = mqtt\nobject_count = 1\n\n[object.1]\n",
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file)
+
+    assert config.title_font_size == 28
+    assert config.objects[0].label_font_size == 20
+    assert config.objects[0].value_font_size == 64
+
+
+def test_title_font_size_can_be_overridden_by_environment(tmp_path, monkeypatch):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text("[monitor]\nmqtt_host = mqtt\ntitle_font_size = 28\n", encoding="utf-8")
+    monkeypatch.setenv("ROLL_MONITOR_TITLE_FONT_SIZE", "36")
+
+    config = load_config(config_file)
+
+    assert config.title_font_size == 36
+
+
+@pytest.mark.parametrize("invalid_value", ["0", "-1", "large"])
+@pytest.mark.parametrize(
+    ("setting_line", "expected_setting"),
+    [
+        ("title_font_size", "[monitor] title_font_size"),
+        ("label_font_size", "[object.1] label_font_size"),
+        ("value_font_size", "[object.1] value_font_size"),
+    ],
+)
+def test_load_config_rejects_invalid_font_sizes(tmp_path, setting_line, expected_setting, invalid_value):
+    title_line = f"{setting_line} = {invalid_value}" if setting_line == "title_font_size" else ""
+    object_line = f"{setting_line} = {invalid_value}" if setting_line != "title_font_size" else ""
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        f"[monitor]\nmqtt_host = mqtt\nobject_count = 1\n{title_line}\n\n[object.1]\n{object_line}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=re.escape(f"{expected_setting} must be a positive integer")):
+        load_config(config_file)

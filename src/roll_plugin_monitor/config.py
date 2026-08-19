@@ -21,6 +21,17 @@ def _to_bool(value: str | bool | None, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
+def _positive_int(value: str | None, default: int, setting: str) -> int:
+    raw = str(default) if value is None or not value.strip() else value.strip()
+    try:
+        parsed = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{setting} must be a positive integer, got {raw!r}") from exc
+    if parsed <= 0:
+        raise ValueError(f"{setting} must be a positive integer, got {raw!r}")
+    return parsed
+
+
 @dataclass(frozen=True)
 class MonitorObjectConfig:
     object_id: str
@@ -33,12 +44,15 @@ class MonitorObjectConfig:
     y: int
     w: int
     h: int
+    label_font_size: int = 20
+    value_font_size: int = 64
 
 
 @dataclass(frozen=True)
 class MonitorConfig:
     mqtt_host: str
     title: str = "ROLL MONITOR"
+    title_font_size: int = 28
     mqtt_port: int = 1883
     topics: tuple[str, ...] = ("C-S/+/+/+/+/+/+/+/data", "iot/IPR/#")
     grid_columns: int = 16
@@ -72,6 +86,16 @@ def _load_objects(parser: configparser.ConfigParser, count: int) -> tuple[Monito
                 y=int(section.get("y", "1") or 1),
                 w=int(section.get("w", "1") or 1),
                 h=int(section.get("h", "1") or 1),
+                label_font_size=_positive_int(
+                    section.get("label_font_size"),
+                    20,
+                    f"[{section_name}] label_font_size",
+                ),
+                value_font_size=_positive_int(
+                    section.get("value_font_size"),
+                    64,
+                    f"[{section_name}] value_font_size",
+                ),
             )
         )
     return tuple(objects)
@@ -94,6 +118,7 @@ def load_config(path: str | Path | None = None) -> MonitorConfig:
     return MonitorConfig(
         mqtt_host=host,
         title=get("title", "ROLL MONITOR") or "ROLL MONITOR",
+        title_font_size=_positive_int(get("title_font_size"), 28, "[monitor] title_font_size"),
         mqtt_port=int(get("mqtt_port", "1883") or 1883),
         topics=_split_csv(get("topics"), MonitorConfig.topics),
         grid_columns=int(get("grid_columns", "16") or 16),
