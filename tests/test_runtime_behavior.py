@@ -7,6 +7,8 @@ from roll_plugin_monitor.ui import object_place_geometry
 import roll_plugin_monitor.ui as ui
 from datetime import datetime, timezone
 
+import pytest
+
 
 def test_latest_reading_buffer_keeps_only_latest_value():
     buffer = LatestReadingBuffer()
@@ -182,3 +184,18 @@ def test_unit_text_and_font_follow_location_and_object_size():
     assert ui.unit_text("bar", "value") == " bar"
     assert ui.unit_text("", "value") == ""
     assert ui.object_unit_font(monitor_object) == ("Arial", 18, "bold")
+
+
+@pytest.mark.parametrize(
+    ("value", "places", "expected"),
+    [
+        (None, 2, "-"),
+        (13000, 2, "13000"),
+        (13000.123, 2, "13000.12"),
+        (0.129, 2, "0.13"),
+        (3.6, 3, "3.600"),
+        (7.9, 0, "8"),
+    ],
+)
+def test_format_value_preserves_integers_and_controls_fraction(value, places, expected):
+    assert ui.format_value(value, places) == expected

@@ -93,6 +93,14 @@ def unit_text(unit: str, location: str) -> str:
     return f" ({unit})" if location == "label" else f" {unit}"
 
 
+def format_value(value: float | int | None, decimal_places: int) -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, int):
+        return str(value)
+    return f"{value:.{decimal_places}f}"
+
+
 class RollMonitorApp:
     def __init__(self, config: MonitorConfig) -> None:
         self.config = config
@@ -106,6 +114,7 @@ class RollMonitorApp:
         self.object_values: dict[str, tk.StringVar] = {}
         self.object_last_seen: dict[str, tk.StringVar] = {}
         self.object_value_labels: dict[str, tk.Label] = {}
+        self.objects_by_id = {item.object_id: item for item in config.objects}
         self.warning = warning_presentation(config.warning_color_use)
         self.broker_status = tk.StringVar(value=broker_status_text(False, config.warning_color_use))
         self._build()
@@ -232,8 +241,9 @@ class RollMonitorApp:
     def _render(self, snapshot: MonitorSnapshot) -> None:
         for object_id, value in (snapshot.object_values or {}).items():
             variable = self.object_values.get(object_id)
-            if variable is not None:
-                variable.set(self._format(value))
+            monitor_object = self.objects_by_id.get(object_id)
+            if variable is not None and monitor_object is not None:
+                variable.set(format_value(value, monitor_object.decimal_places))
         for object_id, variable in self.object_last_seen.items():
             value_label = self.object_value_labels.get(object_id)
             last_seen = snapshot.object_last_seen.get(object_id)
@@ -242,7 +252,3 @@ class RollMonitorApp:
                 value_label.configure(fg=self.warning.stale_value_color if is_stale else "white")
             variable.set(last_seen_text(is_stale, last_seen, self.config.warning_color_use))
 
-    def _format(self, value: float | int | None) -> str:
-        if value is None:
-            return "-"
-        return f"{value:.2f}" if isinstance(value, float) else str(value)
