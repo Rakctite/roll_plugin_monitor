@@ -32,6 +32,17 @@ def _positive_int(value: str | None, default: int, setting: str) -> int:
     return parsed
 
 
+def _non_negative_int(value: str | None, default: int, setting: str) -> int:
+    raw = str(default) if value is None or not value.strip() else value.strip()
+    try:
+        parsed = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{setting} must be a non-negative integer, got {raw!r}") from exc
+    if parsed < 0:
+        raise ValueError(f"{setting} must be a non-negative integer, got {raw!r}")
+    return parsed
+
+
 def _choice(value: str | None, default: str, setting: str, allowed: tuple[str, ...]) -> str:
     parsed = default if value is None or not value.strip() else value.strip().lower()
     if parsed not in allowed:
@@ -55,6 +66,7 @@ class MonitorObjectConfig:
     label_font_size: int = 20
     value_font_size: int = 64
     unit_font_size: int = 12
+    decimal_places: int = 2
 
 
 @dataclass(frozen=True)
@@ -112,6 +124,11 @@ def _load_objects(parser: configparser.ConfigParser, count: int) -> tuple[Monito
                     section.get("unit_font_size"),
                     12,
                     f"[{section_name}] unit_font_size",
+                ),
+                decimal_places=_non_negative_int(
+                    section.get("decimal_places"),
+                    2,
+                    f"[{section_name}] decimal_places",
                 ),
             )
         )

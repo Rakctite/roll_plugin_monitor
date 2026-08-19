@@ -540,3 +540,43 @@ def test_load_config_rejects_invalid_unit_font_size(tmp_path, invalid_value):
 
     with pytest.raises(ValueError, match=re.escape("[object.1] unit_font_size must be a positive integer")):
         load_config(config_file)
+
+
+def test_load_config_reads_independent_decimal_places(tmp_path):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        "[monitor]\nmqtt_host=mqtt\nobject_count=2\n"
+        "\n[object.1]\ndecimal_places=1\n"
+        "\n[object.2]\ndecimal_places=4\n",
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file)
+
+    assert [item.decimal_places for item in config.objects] == [1, 4]
+
+
+def test_load_config_defaults_decimal_places_to_two(tmp_path):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        "[monitor]\nmqtt_host=mqtt\nobject_count=1\n\n[object.1]\n",
+        encoding="utf-8",
+    )
+
+    assert load_config(config_file).objects[0].decimal_places == 2
+
+
+@pytest.mark.parametrize("invalid_value", ["-1", "1.5", "many"])
+def test_load_config_rejects_invalid_decimal_places(tmp_path, invalid_value):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        f"[monitor]\nmqtt_host=mqtt\nobject_count=1\n"
+        f"\n[object.1]\ndecimal_places={invalid_value}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape("[object.1] decimal_places must be a non-negative integer"),
+    ):
+        load_config(config_file)
