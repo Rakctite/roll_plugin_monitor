@@ -10,6 +10,9 @@ from .payloads import RollReading
 from .state import MonitorSnapshot, MonitorState
 
 
+DEFAULT_FONT_FAMILY = "DejaVu Sans Condensed"
+
+
 class LatestReadingBuffer:
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -42,19 +45,19 @@ def object_place_geometry(monitor_object: MonitorObjectConfig, config: MonitorCo
 
 
 def title_font(config: MonitorConfig) -> tuple[str, int, str]:
-    return ("Arial", config.title_font_size, "bold")
+    return (DEFAULT_FONT_FAMILY, config.title_font_size, "bold")
 
 
 def object_label_font(monitor_object: MonitorObjectConfig) -> tuple[str, int, str]:
-    return ("Arial", monitor_object.label_font_size, "bold")
+    return (DEFAULT_FONT_FAMILY, monitor_object.label_font_size, "bold")
 
 
 def object_value_font(monitor_object: MonitorObjectConfig) -> tuple[str, int, str]:
-    return ("Arial", monitor_object.value_font_size, "bold")
+    return (DEFAULT_FONT_FAMILY, monitor_object.value_font_size, "bold")
 
 
 def object_unit_font(monitor_object: MonitorObjectConfig) -> tuple[str, int, str]:
-    return ("Arial", monitor_object.unit_font_size, "bold")
+    return (DEFAULT_FONT_FAMILY, monitor_object.unit_font_size, "bold")
 
 
 def body_grid_options(config: MonitorConfig) -> dict[str, int | tuple[int, int]]:
@@ -150,7 +153,7 @@ class RollMonitorApp:
                 textvariable=self.broker_status,
                 fg=self.warning.broker_color,
                 bg="#111111",
-                font=("Arial", 16, "bold"),
+                font=(DEFAULT_FONT_FAMILY, 16, "bold"),
             ).pack(side="right")
         else:
             self.root.grid_rowconfigure(0, weight=1)
@@ -226,7 +229,7 @@ class RollMonitorApp:
             textvariable=last_seen,
             fg=self.warning.last_seen_color,
             bg="#1e1e1e",
-            font=("Arial", 12, "bold"),
+            font=(DEFAULT_FONT_FAMILY, 12, "bold"),
         ).pack(anchor="w")
 
     def _poll(self) -> None:

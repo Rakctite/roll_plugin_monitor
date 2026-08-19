@@ -6,7 +6,7 @@ ENV PYTHONPATH=/app/src
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3-tk tk libx11-6 \
+    && apt-get install -y --no-install-recommends python3-tk tk libx11-6 fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt

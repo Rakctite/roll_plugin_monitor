@@ -129,9 +129,9 @@ def test_ui_font_specs_use_monitor_and_object_font_sizes():
         value_font_size=70,
     )
 
-    assert ui.title_font(config) == ("Arial", 34, "bold")
-    assert ui.object_label_font(monitor_object) == ("Arial", 22, "bold")
-    assert ui.object_value_font(monitor_object) == ("Arial", 70, "bold")
+    assert ui.title_font(config) == ("DejaVu Sans Condensed", 34, "bold")
+    assert ui.object_label_font(monitor_object) == ("DejaVu Sans Condensed", 22, "bold")
+    assert ui.object_value_font(monitor_object) == ("DejaVu Sans Condensed", 70, "bold")
 
 
 def test_body_grid_options_use_full_height_when_title_is_disabled():
@@ -183,7 +183,7 @@ def test_unit_text_and_font_follow_location_and_object_size():
     assert ui.unit_text("bar", "label") == " (bar)"
     assert ui.unit_text("bar", "value") == " bar"
     assert ui.unit_text("", "value") == ""
-    assert ui.object_unit_font(monitor_object) == ("Arial", 18, "bold")
+    assert ui.object_unit_font(monitor_object) == ("DejaVu Sans Condensed", 18, "bold")
 
 
 @pytest.mark.parametrize(
