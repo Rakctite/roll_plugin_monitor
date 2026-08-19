@@ -1,6 +1,6 @@
 services:
   roll-plugin-monitor:
-    image: 203.228.107.184:5000/btx/roll_plugin_monitor:1.0.1
+    image: 203.228.107.184:5000/btx/roll_plugin_monitor:1.0.3
     container_name: roll-plugin-monitor
     restart: unless-stopped
     environment:
