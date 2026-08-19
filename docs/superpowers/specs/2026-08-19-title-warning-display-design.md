@@ -1,17 +1,18 @@
-# Title and Warning Display Controls Design
+# Display Controls and Unit Placement Design
 
 ## Goal
 
-Allow operators to remove the title row so monitor objects use the full screen height, and independently control whether connection/stale warnings are hidden, shown neutrally, or shown in red.
+Allow operators to remove the title row so monitor objects use the full screen height, independently control warning presentation, and choose whether units appear beside object labels or measured values with per-object unit font sizes.
 
 ## Configuration Interface
 
-Add two settings to `[monitor]`:
+Add three settings to `[monitor]`:
 
 ```ini
 [monitor]
 title_use = 1
 warning_color_use = 2
+unit_location = label
 ```
 
 `title_use` accepts:
@@ -24,6 +25,19 @@ warning_color_use = 2
 - `0`: hide `Broker Disconnected` and `Last Seen`; never change a stale measured value to red.
 - `1`: show `Broker Disconnected` and `Last Seen` using neutral colors; never change a stale measured value to red.
 - `2`: retain the current warning behavior: show warning text in red and change stale measured values to red.
+
+`unit_location` accepts:
+
+- `label`: display the unit after the object label in parentheses, such as `PRESSURE (bar)`.
+- `value`: display the unit after the measured value without parentheses, such as `12.3 bar`.
+
+Each object controls the size of its own unit text:
+
+```ini
+[object.1]
+unit = bar
+unit_font_size = 12
+```
 
 ## Layout Behavior
 
@@ -45,23 +59,37 @@ Warning presentation is selected at render time from one validated mode:
 
 The connected broker state continues to use an empty status string in every mode. Mode `0` suppresses warning strings at their source rather than merely painting them the background color.
 
+## Unit Placement
+
+Unit text remains a separate Tkinter label so it can use `unit_font_size` independently of `label_font_size` and `value_font_size`.
+
+For `unit_location = label`, the existing header structure is retained. The unit label renders ` ({unit})` beside the object label.
+
+For `unit_location = value`, the header contains only the object label. A centered value row contains the measured-value label followed by a unit label rendering ` {unit}` without parentheses. The value and unit labels share the row but retain their independent font sizes. If an object's `unit` is empty, no unit label is created in either location.
+
 ## Compatibility and Validation
 
 - Omitted `title_use` defaults to `1`.
 - Omitted `warning_color_use` defaults to `2`.
+- Omitted `unit_location` defaults to `label`.
+- Omitted per-object `unit_font_size` defaults to `12`.
 - These defaults preserve the existing UI exactly.
 - `title_use` must be `0` or `1`.
 - `warning_color_use` must be `0`, `1`, or `2`.
-- Invalid values fail during startup with an error identifying the affected `[monitor]` setting.
-- `ROLL_MONITOR_TITLE_USE` and `ROLL_MONITOR_WARNING_COLOR_USE` override their INI counterparts through the existing environment-variable convention.
+- `unit_location` must be `label` or `value`.
+- `unit_font_size` must be a positive integer.
+- Invalid values fail during startup with an error identifying the affected monitor or object setting.
+- `ROLL_MONITOR_TITLE_USE`, `ROLL_MONITOR_WARNING_COLOR_USE`, and `ROLL_MONITOR_UNIT_LOCATION` override their INI counterparts through the existing environment-variable convention.
 
 ## Code Changes
 
-- Add `title_use: bool = True` and `warning_color_use: int = 2` to `MonitorConfig`.
-- Add strict parsers for the binary title flag and three-state warning mode in `config.py`.
+- Add `title_use: bool = True`, `warning_color_use: int = 2`, and `unit_location: str = "label"` to `MonitorConfig`.
+- Add `unit_font_size: int = 12` to `MonitorObjectConfig`.
+- Add strict parsers for the binary title flag, three-state warning mode, and unit location in `config.py`; reuse positive-integer validation for unit font size.
 - Extract small pure UI helpers that describe body placement and warning presentation without requiring `tk.Tk()`.
 - Build the title frame conditionally and place the body according to the title flag.
 - Apply the warning presentation consistently in broker status updates and stale-object rendering.
+- Place each unit label in the header or value row according to the monitor-wide setting while applying its object's unit font size.
 - Update `config.example.ini` and `README.md`.
 
 ## Testing
@@ -72,6 +100,9 @@ The connected broker state continues to use an empty status string in every mode
 - Verify title-on and title-off body layout specifications.
 - Verify the complete warning presentation matrix for modes 0, 1, and 2.
 - Verify broker status strings and stale Last Seen strings respect the selected mode without opening a real display.
+- Verify `unit_location` defaults, valid values, environment override, and invalid-value rejection.
+- Verify independent per-object unit font sizes and invalid-value rejection.
+- Verify pure unit display specifications for label and value placement, including empty units.
 - Run the full pytest suite and Python byte-compilation check.
 
 ## Out of Scope
@@ -79,4 +110,5 @@ The connected broker state continues to use an empty status string in every mode
 - Runtime hot reload; changing either setting requires restarting or recreating the application container.
 - Separate modes for broker and stale-data warnings.
 - Configurable warning colors.
+- Per-object unit locations; placement is monitor-wide.
 - Removing the existing outer screen margin.
