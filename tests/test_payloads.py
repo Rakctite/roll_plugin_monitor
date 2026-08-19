@@ -447,3 +447,96 @@ def test_load_config_rejects_invalid_font_sizes(tmp_path, setting_line, expected
 
     with pytest.raises(ValueError, match=re.escape(f"{expected_setting} must be a positive integer")):
         load_config(config_file)
+
+
+def test_load_config_reads_display_controls_and_independent_unit_font_sizes(tmp_path):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        "\n".join(
+            [
+                "[monitor]",
+                "mqtt_host = mqtt",
+                "object_count = 2",
+                "title_use = 0",
+                "warning_color_use = 1",
+                "unit_location = value",
+                "",
+                "[object.1]",
+                "unit_font_size = 16",
+                "",
+                "[object.2]",
+                "unit_font_size = 22",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file)
+
+    assert config.title_use is False
+    assert config.warning_color_use == 1
+    assert config.unit_location == "value"
+    assert config.objects[0].unit_font_size == 16
+    assert config.objects[1].unit_font_size == 22
+
+
+def test_load_config_uses_existing_display_behavior_as_defaults(tmp_path):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        "[monitor]\nmqtt_host = mqtt\nobject_count = 1\n\n[object.1]\n",
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file)
+
+    assert config.title_use is True
+    assert config.warning_color_use == 2
+    assert config.unit_location == "label"
+    assert config.objects[0].unit_font_size == 12
+
+
+def test_display_controls_can_be_overridden_by_environment(tmp_path, monkeypatch):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text("[monitor]\nmqtt_host = mqtt\n", encoding="utf-8")
+    monkeypatch.setenv("ROLL_MONITOR_TITLE_USE", "0")
+    monkeypatch.setenv("ROLL_MONITOR_WARNING_COLOR_USE", "0")
+    monkeypatch.setenv("ROLL_MONITOR_UNIT_LOCATION", "value")
+
+    config = load_config(config_file)
+
+    assert config.title_use is False
+    assert config.warning_color_use == 0
+    assert config.unit_location == "value"
+
+
+@pytest.mark.parametrize(
+    ("setting", "invalid_value"),
+    [
+        ("title_use", "2"),
+        ("title_use", "yes"),
+        ("warning_color_use", "-1"),
+        ("warning_color_use", "3"),
+        ("unit_location", "side"),
+    ],
+)
+def test_load_config_rejects_invalid_display_controls(tmp_path, setting, invalid_value):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        f"[monitor]\nmqtt_host = mqtt\n{setting} = {invalid_value}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=re.escape(f"[monitor] {setting} must be one of")):
+        load_config(config_file)
+
+
+@pytest.mark.parametrize("invalid_value", ["0", "-1", "large"])
+def test_load_config_rejects_invalid_unit_font_size(tmp_path, invalid_value):
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        f"[monitor]\nmqtt_host = mqtt\nobject_count = 1\n\n[object.1]\nunit_font_size = {invalid_value}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=re.escape("[object.1] unit_font_size must be a positive integer")):
+        load_config(config_file)

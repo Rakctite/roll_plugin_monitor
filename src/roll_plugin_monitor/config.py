@@ -32,6 +32,14 @@ def _positive_int(value: str | None, default: int, setting: str) -> int:
     return parsed
 
 
+def _choice(value: str | None, default: str, setting: str, allowed: tuple[str, ...]) -> str:
+    parsed = default if value is None or not value.strip() else value.strip().lower()
+    if parsed not in allowed:
+        choices = ", ".join(allowed)
+        raise ValueError(f"{setting} must be one of {choices}, got {parsed!r}")
+    return parsed
+
+
 @dataclass(frozen=True)
 class MonitorObjectConfig:
     object_id: str
@@ -46,6 +54,7 @@ class MonitorObjectConfig:
     h: int
     label_font_size: int = 20
     value_font_size: int = 64
+    unit_font_size: int = 12
 
 
 @dataclass(frozen=True)
@@ -53,6 +62,9 @@ class MonitorConfig:
     mqtt_host: str
     title: str = "ROLL MONITOR"
     title_font_size: int = 28
+    title_use: bool = True
+    warning_color_use: int = 2
+    unit_location: str = "label"
     mqtt_port: int = 1883
     topics: tuple[str, ...] = ("C-S/+/+/+/+/+/+/+/data", "iot/IPR/#")
     grid_columns: int = 16
@@ -96,6 +108,11 @@ def _load_objects(parser: configparser.ConfigParser, count: int) -> tuple[Monito
                     64,
                     f"[{section_name}] value_font_size",
                 ),
+                unit_font_size=_positive_int(
+                    section.get("unit_font_size"),
+                    12,
+                    f"[{section_name}] unit_font_size",
+                ),
             )
         )
     return tuple(objects)
@@ -115,10 +132,25 @@ def load_config(path: str | Path | None = None) -> MonitorConfig:
 
     host = get("mqtt_host") or get("mqtt_broker") or "localhost"
     object_count = int(get("object_count", "0") or 0)
+    title_use = _choice(get("title_use"), "1", "[monitor] title_use", ("0", "1"))
+    warning_color_use = _choice(
+        get("warning_color_use"),
+        "2",
+        "[monitor] warning_color_use",
+        ("0", "1", "2"),
+    )
     return MonitorConfig(
         mqtt_host=host,
         title=get("title", "ROLL MONITOR") or "ROLL MONITOR",
         title_font_size=_positive_int(get("title_font_size"), 28, "[monitor] title_font_size"),
+        title_use=bool(int(title_use)),
+        warning_color_use=int(warning_color_use),
+        unit_location=_choice(
+            get("unit_location"),
+            "label",
+            "[monitor] unit_location",
+            ("label", "value"),
+        ),
         mqtt_port=int(get("mqtt_port", "1883") or 1883),
         topics=_split_csv(get("topics"), MonitorConfig.topics),
         grid_columns=int(get("grid_columns", "16") or 16),
