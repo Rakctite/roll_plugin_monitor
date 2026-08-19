@@ -5,6 +5,7 @@ from roll_plugin_monitor.payloads import RollReading
 from roll_plugin_monitor.ui import LatestReadingBuffer
 from roll_plugin_monitor.ui import object_place_geometry
 import roll_plugin_monitor.ui as ui
+from datetime import datetime, timezone
 
 
 def test_latest_reading_buffer_keeps_only_latest_value():
@@ -129,3 +130,55 @@ def test_ui_font_specs_use_monitor_and_object_font_sizes():
     assert ui.title_font(config) == ("Arial", 34, "bold")
     assert ui.object_label_font(monitor_object) == ("Arial", 22, "bold")
     assert ui.object_value_font(monitor_object) == ("Arial", 70, "bold")
+
+
+def test_body_grid_options_use_full_height_when_title_is_disabled():
+    assert ui.body_grid_options(MonitorConfig(mqtt_host="mqtt", title_use=True)) == {
+        "row": 1,
+        "pady": (0, 24),
+    }
+    assert ui.body_grid_options(MonitorConfig(mqtt_host="mqtt", title_use=False)) == {
+        "row": 0,
+        "pady": (24, 24),
+    }
+
+
+def test_warning_presentation_supports_hidden_neutral_and_red_modes():
+    assert ui.warning_presentation(0) == ui.WarningPresentation(False, "#bbbbbb", "#bbbbbb", "white")
+    assert ui.warning_presentation(1) == ui.WarningPresentation(True, "#bbbbbb", "#bbbbbb", "white")
+    assert ui.warning_presentation(2) == ui.WarningPresentation(True, "#ff4d4d", "#ff6b6b", "#ff4d4d")
+
+
+def test_warning_text_respects_warning_mode():
+    last_seen = datetime(2026, 8, 19, 1, 2, 3, tzinfo=timezone.utc)
+
+    assert ui.broker_status_text(False, 0) == ""
+    assert ui.broker_status_text(False, 1) == "Broker Disconnected"
+    assert ui.broker_status_text(False, 2) == "Broker Disconnected"
+    assert ui.broker_status_text(True, 2) == ""
+    assert ui.last_seen_text(True, last_seen, 0) == ""
+    assert ui.last_seen_text(True, last_seen, 1).startswith("Last Seen: ")
+    assert ui.last_seen_text(True, last_seen, 2).startswith("Last Seen: ")
+    assert ui.last_seen_text(False, last_seen, 2) == ""
+    assert ui.last_seen_text(True, None, 2) == ""
+
+
+def test_unit_text_and_font_follow_location_and_object_size():
+    monitor_object = MonitorObjectConfig(
+        object_id="1",
+        label="PRESSURE",
+        unit="bar",
+        style=1,
+        topic="topic",
+        sensor_name="pressure",
+        x=1,
+        y=1,
+        w=4,
+        h=2,
+        unit_font_size=18,
+    )
+
+    assert ui.unit_text("bar", "label") == " (bar)"
+    assert ui.unit_text("bar", "value") == " bar"
+    assert ui.unit_text("", "value") == ""
+    assert ui.object_unit_font(monitor_object) == ("Arial", 18, "bold")

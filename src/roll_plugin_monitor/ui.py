@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import tkinter as tk
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from .config import MonitorConfig, MonitorObjectConfig
@@ -52,6 +53,46 @@ def object_value_font(monitor_object: MonitorObjectConfig) -> tuple[str, int, st
     return ("Arial", monitor_object.value_font_size, "bold")
 
 
+def object_unit_font(monitor_object: MonitorObjectConfig) -> tuple[str, int, str]:
+    return ("Arial", monitor_object.unit_font_size, "bold")
+
+
+def body_grid_options(config: MonitorConfig) -> dict[str, int | tuple[int, int]]:
+    return {"row": 1, "pady": (0, 24)} if config.title_use else {"row": 0, "pady": (24, 24)}
+
+
+@dataclass(frozen=True)
+class WarningPresentation:
+    show_messages: bool
+    broker_color: str
+    last_seen_color: str
+    stale_value_color: str
+
+
+def warning_presentation(mode: int) -> WarningPresentation:
+    if mode == 0:
+        return WarningPresentation(False, "#bbbbbb", "#bbbbbb", "white")
+    if mode == 1:
+        return WarningPresentation(True, "#bbbbbb", "#bbbbbb", "white")
+    return WarningPresentation(True, "#ff4d4d", "#ff6b6b", "#ff4d4d")
+
+
+def broker_status_text(connected: bool, warning_mode: int) -> str:
+    return "" if connected or warning_mode == 0 else "Broker Disconnected"
+
+
+def last_seen_text(is_stale: bool, last_seen: datetime | None, warning_mode: int) -> str:
+    if not is_stale or last_seen is None or warning_mode == 0:
+        return ""
+    return f"Last Seen: {last_seen.astimezone().strftime('%Y-%m-%d %H:%M:%S')}"
+
+
+def unit_text(unit: str, location: str) -> str:
+    if not unit:
+        return ""
+    return f" ({unit})" if location == "label" else f" {unit}"
+
+
 class RollMonitorApp:
     def __init__(self, config: MonitorConfig) -> None:
         self.config = config
@@ -65,14 +106,15 @@ class RollMonitorApp:
         self.object_values: dict[str, tk.StringVar] = {}
         self.object_last_seen: dict[str, tk.StringVar] = {}
         self.object_value_labels: dict[str, tk.Label] = {}
-        self.broker_status = tk.StringVar(value="Broker Disconnected")
+        self.warning = warning_presentation(config.warning_color_use)
+        self.broker_status = tk.StringVar(value=broker_status_text(False, config.warning_color_use))
         self._build()
 
     def enqueue(self, reading: RollReading) -> None:
         self.latest_reading.put(reading)
 
     def set_broker_connected(self, connected: bool) -> None:
-        status = "" if connected else "Broker Disconnected"
+        status = broker_status_text(connected, self.config.warning_color_use)
         self.root.after(0, lambda: self.broker_status.set(status))
 
     def run(self) -> None:
@@ -84,23 +126,29 @@ class RollMonitorApp:
 
     def _build_object_grid(self) -> None:
         self.root.configure(bg="#111111")
-        self.root.grid_rowconfigure(0, weight=0)
-        self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
-        title = tk.Frame(self.root, bg="#111111")
-        title.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 10))
-        tk.Label(title, text=self.config.title, fg="white", bg="#111111", font=title_font(self.config)).pack(side="left")
-        tk.Label(
-            title,
-            textvariable=self.broker_status,
-            fg="#ff4d4d",
-            bg="#111111",
-            font=("Arial", 16, "bold"),
-        ).pack(side="right")
+        if self.config.title_use:
+            self.root.grid_rowconfigure(0, weight=0)
+            self.root.grid_rowconfigure(1, weight=1)
+            title = tk.Frame(self.root, bg="#111111")
+            title.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 10))
+            tk.Label(title, text=self.config.title, fg="white", bg="#111111", font=title_font(self.config)).pack(
+                side="left"
+            )
+            tk.Label(
+                title,
+                textvariable=self.broker_status,
+                fg=self.warning.broker_color,
+                bg="#111111",
+                font=("Arial", 16, "bold"),
+            ).pack(side="right")
+        else:
+            self.root.grid_rowconfigure(0, weight=1)
 
         body = tk.Frame(self.root, bg="#111111")
-        body.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 24))
+        layout = body_grid_options(self.config)
+        body.grid(row=layout["row"], column=0, sticky="nsew", padx=24, pady=layout["pady"])
 
         for monitor_object in self.config.objects:
             self._build_object_style(body, monitor_object)
@@ -135,20 +183,42 @@ class RollMonitorApp:
         tk.Label(header, text=monitor_object.label, fg="#bbbbbb", bg="#1e1e1e", font=object_label_font(monitor_object)).pack(
             side="left"
         )
-        if monitor_object.unit:
+        rendered_unit = unit_text(monitor_object.unit, self.config.unit_location)
+        if rendered_unit and self.config.unit_location == "label":
             tk.Label(
                 header,
-                text=f" ({monitor_object.unit})",
+                text=rendered_unit,
                 fg="#999999",
                 bg="#1e1e1e",
-                font=("Arial", 12, "bold"),
+                font=object_unit_font(monitor_object),
             ).pack(side="left", padx=(4, 0), pady=(6, 0))
-        value_label = tk.Label(panel, textvariable=value, fg="white", bg="#1e1e1e", font=object_value_font(monitor_object))
-        value_label.pack(expand=True)
-        self.object_value_labels[monitor_object.object_id] = value_label
-        tk.Label(panel, textvariable=last_seen, fg="#ff6b6b", bg="#1e1e1e", font=("Arial", 12, "bold")).pack(
-            anchor="w"
+
+        value_row = tk.Frame(panel, bg="#1e1e1e")
+        value_row.pack(expand=True)
+        value_label = tk.Label(
+            value_row,
+            textvariable=value,
+            fg="white",
+            bg="#1e1e1e",
+            font=object_value_font(monitor_object),
         )
+        value_label.pack(side="left")
+        if rendered_unit and self.config.unit_location == "value":
+            tk.Label(
+                value_row,
+                text=rendered_unit,
+                fg="#999999",
+                bg="#1e1e1e",
+                font=object_unit_font(monitor_object),
+            ).pack(side="left")
+        self.object_value_labels[monitor_object.object_id] = value_label
+        tk.Label(
+            panel,
+            textvariable=last_seen,
+            fg=self.warning.last_seen_color,
+            bg="#1e1e1e",
+            font=("Arial", 12, "bold"),
+        ).pack(anchor="w")
 
     def _poll(self) -> None:
         reading = self.latest_reading.take_latest()
@@ -169,11 +239,8 @@ class RollMonitorApp:
             last_seen = snapshot.object_last_seen.get(object_id)
             is_stale = object_id in snapshot.stale_object_ids
             if value_label is not None:
-                value_label.configure(fg="#ff4d4d" if is_stale else "white")
-            if is_stale and last_seen is not None:
-                variable.set(f"Last Seen: {last_seen.astimezone().strftime('%Y-%m-%d %H:%M:%S')}")
-            else:
-                variable.set("")
+                value_label.configure(fg=self.warning.stale_value_color if is_stale else "white")
+            variable.set(last_seen_text(is_stale, last_seen, self.config.warning_color_use))
 
     def _format(self, value: float | int | None) -> str:
         if value is None:
