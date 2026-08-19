@@ -6,3 +6,4 @@ venv/
 config.ini
 /roll_plugin_monitor/
 logs/
+.worktrees/
