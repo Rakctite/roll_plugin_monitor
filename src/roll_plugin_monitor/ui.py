@@ -104,6 +104,11 @@ def format_value(value: float | int | None, decimal_places: int) -> str:
     return f"{value:.{decimal_places}f}"
 
 
+def apply_pending_readings(buffer: LatestReadingBuffer, state: MonitorState) -> None:
+    for reading in buffer.take_pending():
+        state.update(reading)
+
+
 class RollMonitorApp:
     def __init__(self, config: MonitorConfig) -> None:
         self.config = config
@@ -233,9 +238,7 @@ class RollMonitorApp:
         ).pack(anchor="w")
 
     def _poll(self) -> None:
-        reading = self.latest_reading.take_latest()
-        if reading is not None:
-            self.state.update(reading)
+        apply_pending_readings(self.latest_reading, self.state)
 
         snapshot = self.state.mark_stale(self.config.stale_sec, datetime.now(timezone.utc))
         self._render(snapshot)

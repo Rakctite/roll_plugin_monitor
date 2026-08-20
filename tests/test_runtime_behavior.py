@@ -2,6 +2,7 @@ from roll_plugin_monitor.config import MonitorConfig
 from roll_plugin_monitor.config import MonitorObjectConfig
 from roll_plugin_monitor.mqtt_client import MqttMonitorClient
 from roll_plugin_monitor.payloads import RollReading
+from roll_plugin_monitor.state import MonitorState
 from roll_plugin_monitor.ui import LatestReadingBuffer
 from roll_plugin_monitor.ui import object_place_geometry
 import roll_plugin_monitor.ui as ui
@@ -22,6 +23,17 @@ def test_latest_reading_buffer_keeps_latest_reading_per_topic_in_arrival_order()
 
     assert buffer.take_pending() == (temp_latest, gap)
     assert buffer.take_pending() == ()
+
+
+def test_pending_topic_batch_merges_temp_and_gap_values_into_state():
+    buffer = LatestReadingBuffer()
+    buffer.put(RollReading(topic="temp", object_values={"3": 37.0}))
+    buffer.put(RollReading(topic="gap", object_values={"1": 3.99, "2": 4.0}))
+    state = MonitorState()
+
+    ui.apply_pending_readings(buffer, state)
+
+    assert state.snapshot().object_values == {"3": 37.0, "1": 3.99, "2": 4.0}
 
 
 class _FakeClient:
