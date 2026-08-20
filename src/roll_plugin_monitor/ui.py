@@ -16,17 +16,17 @@ DEFAULT_FONT_FAMILY = "DejaVu Sans Condensed"
 class LatestReadingBuffer:
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._reading: RollReading | None = None
+        self._readings_by_topic: dict[str, RollReading] = {}
 
     def put(self, reading: RollReading) -> None:
         with self._lock:
-            self._reading = reading
+            self._readings_by_topic[reading.topic] = reading
 
-    def take_latest(self) -> RollReading | None:
+    def take_pending(self) -> tuple[RollReading, ...]:
         with self._lock:
-            reading = self._reading
-            self._reading = None
-            return reading
+            readings = tuple(self._readings_by_topic.values())
+            self._readings_by_topic.clear()
+            return readings
 
 
 def object_place_geometry(monitor_object: MonitorObjectConfig, config: MonitorConfig) -> dict[str, float]:

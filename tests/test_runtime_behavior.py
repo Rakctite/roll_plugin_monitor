@@ -10,16 +10,18 @@ from datetime import datetime, timezone
 import pytest
 
 
-def test_latest_reading_buffer_keeps_only_latest_value():
+def test_latest_reading_buffer_keeps_latest_reading_per_topic_in_arrival_order():
     buffer = LatestReadingBuffer()
-    first = RollReading(topic="first", sensor_values={"a": 1.0})
-    second = RollReading(topic="second", sensor_values={"b": 2.0})
+    temp_first = RollReading(topic="temp", object_values={"3": 36.9})
+    gap = RollReading(topic="gap", object_values={"1": 3.99, "2": 4.0})
+    temp_latest = RollReading(topic="temp", object_values={"3": 37.0})
 
-    buffer.put(first)
-    buffer.put(second)
+    buffer.put(temp_first)
+    buffer.put(gap)
+    buffer.put(temp_latest)
 
-    assert buffer.take_latest() == second
-    assert buffer.take_latest() is None
+    assert buffer.take_pending() == (temp_latest, gap)
+    assert buffer.take_pending() == ()
 
 
 class _FakeClient:
