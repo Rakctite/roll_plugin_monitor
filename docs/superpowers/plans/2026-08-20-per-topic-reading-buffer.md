@@ -147,7 +147,57 @@ git status --short
 
 Expected: all commands succeed and the isolated worktree is clean.
 
-### Task 3: Integration and ARM64 Release Decision
+### Task 3: Normalize Rounded Zero Display
+
+**Files:**
+- Modify: `tests/test_runtime_behavior.py`
+- Modify: `src/roll_plugin_monitor/ui.py`
+
+- [ ] **Step 1: Extend the existing formatter test with zero-boundary cases**
+
+Add these cases to `test_format_value_preserves_integers_and_controls_fraction`:
+
+```python
+(-0.04, 1, "0"),
+(0.04, 1, "0"),
+(0.0, 2, "0"),
+(-0.004, 2, "0"),
+(3.0, 1, "3.0"),
+(-0.06, 1, "-0.1"),
+```
+
+- [ ] **Step 2: Run the formatter test and verify RED**
+
+Run: `$env:PYTHONPATH='src'; pytest tests/test_runtime_behavior.py::test_format_value_preserves_integers_and_controls_fraction -q`
+
+Expected: zero cases fail with fixed-point strings such as `-0.0`, `0.0`, and `-0.00`.
+
+- [ ] **Step 3: Normalize only formatted zero results**
+
+Replace the floating-point return in `format_value()` with:
+
+```python
+formatted = f"{value:.{decimal_places}f}"
+return "0" if float(formatted) == 0 else formatted
+```
+
+- [ ] **Step 4: Run focused and full tests and verify GREEN**
+
+```powershell
+$env:PYTHONPATH='src'; pytest tests/test_runtime_behavior.py::test_format_value_preserves_integers_and_controls_fraction -q
+$env:PYTHONPATH='src'; pytest -q
+```
+
+Expected: all formatter cases and the complete suite pass.
+
+- [ ] **Step 5: Commit the formatting fix**
+
+```powershell
+git add tests/test_runtime_behavior.py src/roll_plugin_monitor/ui.py
+git commit -m "fix: normalize rounded zero values"
+```
+
+### Task 4: Integration and ARM64 Release Decision
 
 **Files:**
 - Modify only when releasing: `README.md`, `docker-compose.example.yml`
