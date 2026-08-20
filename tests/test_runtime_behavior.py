@@ -209,6 +209,12 @@ def test_unit_text_and_font_follow_location_and_object_size():
         (0.129, 2, "0.13"),
         (3.6, 3, "3.600"),
         (7.9, 0, "8"),
+        (-0.04, 1, "0"),
+        (0.04, 1, "0"),
+        (0.0, 2, "0"),
+        (-0.004, 2, "0"),
+        (3.0, 1, "3.0"),
+        (-0.06, 1, "-0.1"),
     ],
 )
 def test_format_value_preserves_integers_and_controls_fraction(value, places, expected):

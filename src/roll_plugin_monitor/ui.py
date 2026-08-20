@@ -101,7 +101,8 @@ def format_value(value: float | int | None, decimal_places: int) -> str:
         return "-"
     if isinstance(value, int):
         return str(value)
-    return f"{value:.{decimal_places}f}"
+    formatted = f"{value:.{decimal_places}f}"
+    return "0" if float(formatted) == 0 else formatted
 
 
 def apply_pending_readings(buffer: LatestReadingBuffer, state: MonitorState) -> None:
