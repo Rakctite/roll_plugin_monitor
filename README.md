@@ -35,7 +35,7 @@ The compose file passes `DISPLAY` and mounts `/tmp/.X11-unix`, so the Raspberry 
 The published image is:
 
 ```text
-203.228.107.184:5000/btx/roll_plugin_monitor:1.0.4
+203.228.107.184:5000/btx/roll_plugin_monitor:1.0.5
 ```
 
 ## Object Layout
