@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import threading
 import tkinter as tk
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from .state import MonitorSnapshot, MonitorState
 
 
 DEFAULT_FONT_FAMILY = "DejaVu Sans Condensed"
+LOGGER = logging.getLogger(__name__)
 
 
 class LatestReadingBuffer:
@@ -102,7 +104,7 @@ def format_value(value: float | int | None, decimal_places: int) -> str:
     if isinstance(value, int):
         return str(value)
     formatted = f"{value:.{decimal_places}f}"
-    return "0" if float(formatted) == 0 else formatted
+    return formatted.lstrip("-") if float(formatted) == 0 else formatted
 
 
 def apply_pending_readings(buffer: LatestReadingBuffer, state: MonitorState) -> None:
@@ -117,9 +119,8 @@ class RollMonitorApp:
         self.latest_reading = LatestReadingBuffer()
         self.root = tk.Tk()
         self.root.title("Roll Plugin Monitor")
-        if config.fullscreen:
-            self.root.attributes("-fullscreen", True)
-        self.root.bind("<Escape>", lambda event: self.root.attributes("-fullscreen", False))
+        self._fullscreen_retry_count = 0
+        self._fullscreen_confirmed = False
         self.object_values: dict[str, tk.StringVar] = {}
         self.object_last_seen: dict[str, tk.StringVar] = {}
         self.object_value_labels: dict[str, tk.Label] = {}
@@ -136,8 +137,38 @@ class RollMonitorApp:
         self.root.after(0, lambda: self.broker_status.set(status))
 
     def run(self) -> None:
+        LOGGER.info("Starting UI: fullscreen=%s", self.config.fullscreen)
+        if self.config.fullscreen:
+            self.root.after_idle(self._ensure_fullscreen)
         self._poll()
         self.root.mainloop()
+
+    def _ensure_fullscreen(self) -> None:
+        """Restore kiosk mode when the window manager becomes ready or resets it."""
+        try:
+            if self.root.winfo_viewable():
+                if self.root.attributes("-fullscreen"):
+                    if not self._fullscreen_confirmed:
+                        LOGGER.info(
+                            "Fullscreen confirmed: %sx%s",
+                            self.root.winfo_width(), self.root.winfo_height(),
+                        )
+                    self._fullscreen_confirmed = True
+                    self._fullscreen_retry_count = 0
+                else:
+                    self._fullscreen_confirmed = False
+                    self._fullscreen_retry_count += 1
+                    if self._fullscreen_retry_count == 1 or self._fullscreen_retry_count % 30 == 0:
+                        LOGGER.warning(
+                            "Fullscreen inactive; requesting fullscreen (attempt %s)",
+                            self._fullscreen_retry_count,
+                        )
+                    # Reset the requested state so Tk sends another WM request.
+                    self.root.attributes("-fullscreen", False)
+                    self.root.attributes("-fullscreen", True)
+        except tk.TclError:
+            LOGGER.exception("Could not check or restore fullscreen")
+        self.root.after(2000, self._ensure_fullscreen)
 
     def _build(self) -> None:
         self._build_object_grid()
@@ -258,4 +289,3 @@ class RollMonitorApp:
             if value_label is not None:
                 value_label.configure(fg=self.warning.stale_value_color if is_stale else "white")
             variable.set(last_seen_text(is_stale, last_seen, self.config.warning_color_use))
-

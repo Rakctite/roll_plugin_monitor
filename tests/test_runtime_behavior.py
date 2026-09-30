@@ -209,13 +209,66 @@ def test_unit_text_and_font_follow_location_and_object_size():
         (0.129, 2, "0.13"),
         (3.6, 3, "3.600"),
         (7.9, 0, "8"),
-        (-0.04, 1, "0"),
-        (0.04, 1, "0"),
-        (0.0, 2, "0"),
-        (-0.004, 2, "0"),
+        (-0.04, 1, "0.0"),
+        (0.04, 1, "0.0"),
+        (0.0, 2, "0.00"),
+        (-0.004, 2, "0.00"),
+        (-0.0, 3, "0.000"),
+        (-0.04, 0, "0"),
         (3.0, 1, "3.0"),
         (-0.06, 1, "-0.1"),
     ],
 )
 def test_format_value_preserves_integers_and_controls_fraction(value, places, expected):
     assert ui.format_value(value, places) == expected
+
+
+def test_fullscreen_waits_for_mapping_and_recovers_after_window_manager_reset():
+    class FakeRoot:
+        visible = False
+        fullscreen = False
+
+        def __init__(self):
+            self.requests = []
+            self.callbacks = []
+
+        def winfo_viewable(self):
+            return self.visible
+
+        def attributes(self, name, value=None):
+            assert name == "-fullscreen"
+            if value is None:
+                return self.fullscreen
+            self.requests.append(value)
+            self.fullscreen = value
+
+        def after(self, delay, callback):
+            self.callbacks.append((delay, callback))
+
+        def winfo_width(self):
+            return 1920
+
+        def winfo_height(self):
+            return 1080
+
+    app = ui.RollMonitorApp.__new__(ui.RollMonitorApp)
+    app.root = FakeRoot()
+    app._fullscreen_retry_count = 0
+    app._fullscreen_confirmed = False
+
+    app._ensure_fullscreen()
+    assert app.root.requests == []
+    assert app.root.callbacks[-1] == (2000, app._ensure_fullscreen)
+
+    app.root.visible = True
+    app._ensure_fullscreen()
+    assert app.root.requests == [False, True]
+    app._ensure_fullscreen()
+    assert app._fullscreen_confirmed
+    assert app._fullscreen_retry_count == 0
+    assert app.root.requests == [False, True]
+
+    app.root.fullscreen = False
+    app._ensure_fullscreen()
+    assert app.root.requests == [False, True, False, True]
+    assert not app._fullscreen_confirmed

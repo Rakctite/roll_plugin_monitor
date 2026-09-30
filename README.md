@@ -32,10 +32,12 @@ docker compose -f docker-compose.example.yml up -d
 
 The compose file passes `DISPLAY` and mounts `/tmp/.X11-unix`, so the Raspberry Pi desktop session must be running.
 
+With `fullscreen = true`, the app requests fullscreen after the window appears and checks every two seconds to restore it if the desktop session clears it. Escape does not exit fullscreen. Startup, fullscreen requests, and confirmed window dimensions are logged.
+
 The published image is:
 
 ```text
-203.228.107.184:5000/btx/roll_plugin_monitor:1.0.5
+203.228.107.184:5000/btx/roll_plugin_monitor:1.0.6
 ```
 
 ## Object Layout
@@ -85,6 +87,8 @@ h = 3
 The UI uses `DejaVu Sans Condensed` in bold by default so long numeric values take less horizontal space. Each `[object.N]` section independently controls `label_font_size`, `value_font_size`, and `unit_font_size`. Defaults are `20`, `64`, and `12`; the title default is `28`. Font sizes must be positive integers.
 
 Each object also controls its displayed fractional digits with `decimal_places`. The default is `2`, and zero or any positive integer is accepted. Integer readings are shown unchanged, regardless of their length. Floating-point readings are rounded and padded to exactly the configured number of fractional digits. For example, with `decimal_places = 2`, `13000` stays `13000`, `13000.123` becomes `13000.12`, and `0.129` becomes `0.13`. Negative and non-integer configuration values stop startup with a clear configuration error.
+
+Floating-point readings that round to zero retain the configured fractional digits without a negative sign: `-0.04` with `decimal_places = 1` displays `0.0`, and `-0.004` with `decimal_places = 2` displays `0.00`.
 
 `warning_color_use` controls stale-data and broker-disconnection presentation:
 
